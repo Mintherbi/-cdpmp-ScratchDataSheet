@@ -1,0 +1,7 @@
+/* Main stylesheet for precedent-datasheet project */
+body {
+  font-family: 'Segoe UI', Arial, sans-serif;
+  background: #f4f7fa;
+  margin: 0;
+  padding: 0;
+}
