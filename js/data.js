@@ -1,5 +1,5 @@
 export const nodes = [
-  { id: 1, label: 'Main', link: 'index.html', main: true, img: 'assets/images/Scratchlogo.svg' },
+  { id: 1, label: 'Scratch', link: 'index.html', main: true, img: 'assets/images/Scratchlogo.svg' },
   { id: 11, label: 'People', link: 'html/People/People.html', parent: 1 },
   { id: 12, label: 'Statistics', link: 'html/Statistics.html', parent: 1 },
   { id: 13, label: 'Bibliography', link: 'html/Bibliography.html', parent: 1 },
