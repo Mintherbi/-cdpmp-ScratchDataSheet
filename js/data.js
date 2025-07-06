@@ -4,7 +4,7 @@ export const nodes = [
   { id: 12, label: 'Statistics', link: 'html/Statistics.html', parent: 1 },
   { id: 13, label: 'Bibliography', link: 'html/Bibliography.html', parent: 1 },
 
-  { id: 111, label: 'Mitchel Resnick', link: '#', parent: 11 }
+  { id: 111, label: 'Mitchel Resnick', link: '#', parent: 11 },
   { id: 112, label: 'Natalie Rusk', link: '#', parent: 11 },
   { id: 113, label: 'Eric Schilling', link:'', parent: 11 },
 
