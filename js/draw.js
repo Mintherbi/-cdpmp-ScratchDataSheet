@@ -1,4 +1,4 @@
-export function drawNodes(nodes, container, width, height) {
+export function drawNodes(nodes, container, width, height, selectedNodeId) {
   container.innerHTML = '';
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   Object.assign(svg.style, {
@@ -40,8 +40,26 @@ export function drawNodes(nodes, container, width, height) {
     text.style.cursor = 'pointer';
     text.onclick = (e) => {
       e.stopPropagation();
-      if (node.link) window.location.assign(node.link);
+      // 선택된 노드 id를 전역에 저장
+      window.selectedNodeId = node.id;
+      // 설명 표시
+      const descDiv = document.getElementById('node-desc');
+      if (descDiv) {
+        descDiv.textContent = node.description || '설명이 없습니다.';
+      }
+      // 기존 링크 이동 기능은 Ctrl+클릭 시에만 동작
+      if (node.link && e.ctrlKey) {
+        window.location.assign(node.link);
+      }
     };
+  // 선택된 노드 설명 항상 표시
+  if (selectedNodeId) {
+    const selNode = nodes.find(n => n.id === selectedNodeId);
+    const descDiv = document.getElementById('node-desc');
+    if (selNode && descDiv) {
+      descDiv.textContent = selNode.description || '설명이 없습니다.';
+    }
+  }
     group.appendChild(text);
     svg.appendChild(group);
     node._element = text; // 중심 좌표 계산용
@@ -84,11 +102,23 @@ export function handleMouseMove(e, nodes) {
   const mouseX = e.clientX;
   const mouseY = e.clientY;
   nodes.forEach(node => {
-    if (node.main && node._element) {
-      const dx = node.x + 60 - mouseX;
-      const dy = node.y + 32 - mouseY;
+    if (node._element) {
+      // 중심 좌표 계산 (이미지+텍스트 노드는 이미지 중심, 그 외는 텍스트 좌상단 기준)
+      let centerX = node.x;
+      let centerY = node.y;
+      if (node.main && node.img) {
+        centerX = node.x + 45; // 이미지 중심
+        centerY = node.y + 45;
+      }
+      const bbox = node._element.getBBox ? node._element.getBBox() : { width: 0, height: 0 };
+      if (!(node.main && node.img)) {
+        centerX = node.x + bbox.width / 2;
+        centerY = node.y + bbox.height / 2;
+      }
+      const dx = centerX - mouseX;
+      const dy = centerY - mouseY;
       const dist = Math.sqrt(dx * dx + dy * dy);
-      if (dist < 120) {
+      if (dist < 60) {
         node._element.setAttribute('font-size', (node._fontSize * 1.5) + 'rem');
       } else {
         node._element.setAttribute('font-size', node._fontSize + 'rem');
