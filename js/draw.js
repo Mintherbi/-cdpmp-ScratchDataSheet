@@ -1,3 +1,6 @@
+// ✅ draw.js
+import { getColorByDepth } from './utils.js';
+
 export function drawNodes(nodes, container, width, height, selectedNodeId) {
   container.innerHTML = '';
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -9,92 +12,156 @@ export function drawNodes(nodes, container, width, height, selectedNodeId) {
     height: '100%',
     zIndex: '0'
   });
+  const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+  svg.appendChild(defs);
   container.appendChild(svg);
 
+  function getRadiusByDepth(depth) {
+    return 80 - depth * 20;
+  }
+
+  function createBlobbyPath(x1, y1, x2, y2, width1, width2) {
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    const angle = Math.atan2(dy, dx);
+    const sin = Math.sin(angle);
+    const cos = Math.cos(angle);
+    const w1 = width1 / 2;
+    const w2 = width2 / 2;
+    const wm = Math.min(w1, w2) * 0.01;
+    const x1a = x1 + -sin * w1;
+    const y1a = y1 +  cos * w1;
+    const x1b = x1 +  sin * w1;
+    const y1b = y1 -  cos * w1;
+    const x2a = x2 + -sin * w2;
+    const y2a = y2 +  cos * w2;
+    const x2b = x2 +  sin * w2;
+    const y2b = y2 -  cos * w2;
+    const mx = (x1 + x2) / 2;
+    const my = (y1 + y2) / 2;
+    const mxa = mx + -sin * wm;
+    const mya = my +  cos * wm;
+    const mxb = mx +  sin * wm;
+    const myb = my -  cos * wm;
+    return `
+      M ${x1a},${y1a}
+      Q ${mxa},${mya} ${x2a},${y2a}
+      L ${x2b},${y2b}
+      Q ${mxb},${myb} ${x1b},${y1b}
+      Z
+    `;
+  }
+
+  const pathsGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  pathsGroup.setAttribute('style', 'z-index: 0');
+  svg.appendChild(pathsGroup);
+
+  const circlesGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  circlesGroup.setAttribute('style', 'z-index: 1');
+  svg.appendChild(circlesGroup);
+
+  const labelsGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  labelsGroup.setAttribute('style', 'z-index: 2');
+  svg.appendChild(labelsGroup);
+
   nodes.forEach(node => {
-    let group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-    let yOffset = 0;
-    if (node.main && node.img) {
-      // 이미지 노드
-      const img = document.createElementNS('http://www.w3.org/2000/svg', 'image');
-      img.setAttribute('href', node.img);
-      img.setAttribute('x', node.x);
-      img.setAttribute('y', node.y);
-      img.setAttribute('width', 90);
-      img.setAttribute('height', 90);
-      group.appendChild(img);
-      yOffset = 50; // 이미지와 텍스트 간격을 더 가깝게
-    }
-    // 텍스트 노드
+    const radius = getRadiusByDepth(node.depth);
+    const cx = node.x + (node.main && node.img ? 45 : 0);
+    const cy = node.y + (node.main && node.img ? 45 : 0);
+    node._centerX = cx;
+    node._centerY = cy;
+    node._radius = radius;
+
     const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
     text.textContent = node.label;
-    text.setAttribute('x', node.x + (node.main && node.img ? 45 : 0));
-    text.setAttribute('y', node.y + yOffset);
-    text.setAttribute('text-anchor', node.main && node.img ? 'middle' : 'start');
-    // id 자리수에 따라 글자 크기 조정 (최대 1.5rem, 최소 0.7rem)
+    text.setAttribute('x', cx);
+    text.setAttribute('y', cy + 4);
+    text.setAttribute('dominant-baseline', 'middle');
+    text.setAttribute('text-anchor', 'middle');
     const idLength = String(node.id).length;
     const fontSize = Math.max(1.5 - (idLength - 1) * 0.2, 0.7);
     text.setAttribute('font-size', fontSize + 'rem');
-    node._fontSize = fontSize; // 원래 폰트 크기 저장
+    node._fontSize = fontSize;
+
     text.setAttribute('font-weight', 'bold');
     text.style.cursor = 'pointer';
+    text.style.pointerEvents = 'auto';  // ✅ 여기에 추가!
     text.onclick = (e) => {
       e.stopPropagation();
-      // 선택된 노드 id를 전역에 저장
       window.selectedNodeId = node.id;
-      // 설명 표시
-      const descDiv = document.getElementById('node-desc');
-      if (descDiv) {
-        descDiv.textContent = node.description || '설명이 없습니다.';
-      }
-      // 기존 링크 이동 기능은 Ctrl+클릭 시에만 동작
-      if (node.link && e.ctrlKey) {
-        window.location.assign(node.link);
-      }
-    };
-  // 선택된 노드 설명 항상 표시
-  if (selectedNodeId) {
-    const selNode = nodes.find(n => n.id === selectedNodeId);
-    const descDiv = document.getElementById('node-desc');
-    if (selNode && descDiv) {
-      descDiv.textContent = selNode.description || '설명이 없습니다.';
-    }
-  }
-    group.appendChild(text);
-    svg.appendChild(group);
-    node._element = text; // 중심 좌표 계산용
+      window.showNodeDescription?.(node);
+};
+
+
+    labelsGroup.appendChild(text);
+    node._element = text;
   });
 
-  nodes.forEach(node => {
+  // sort by depth descending so children are drawn below
+  const sortedNodes = [...nodes].sort((a, b) => b.depth - a.depth);
+
+  // Step 1: draw parent node circles
+  const parentNodes = [...nodes].filter(n => nodes.some(c => c.parent === n.id));
+  parentNodes.forEach(node => {
+    const radius = getRadiusByDepth(node.depth);
+    const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    circle.setAttribute('cx', node._centerX);
+    circle.setAttribute('cy', node._centerY);
+    circle.setAttribute('r', radius);
+    circle.setAttribute('fill', getColorByDepth(node.depth));
+    circlesGroup.appendChild(circle);
+  });
+
+  // Step 2: draw connections between parent and child
+  sortedNodes.forEach(node => {
     if (node.parent) {
       const parentNode = nodes.find(n => n.id === node.parent);
-      if (parentNode && node._element && parentNode._element) {
-        // 각 노드의 중심 좌표 계산
-        const nodeRect = node._element.getBoundingClientRect();
-        const parentRect = parentNode._element.getBoundingClientRect();
-        // container 기준 좌표로 변환
-        const containerRect = container.getBoundingClientRect();
-        const x1 = nodeRect.left - containerRect.left + nodeRect.width / 2;
-        const y1 = nodeRect.top - containerRect.top + nodeRect.height / 2;
-        const x2 = parentRect.left - containerRect.left + parentRect.width / 2;
-        const y2 = parentRect.top - containerRect.top + parentRect.height / 2;
-        const dist = Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
-        let opacity = 1 - Math.min(1, Math.max(0.2, dist / 400)) + 0.2;
-
-        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-        line.setAttribute('x1', x1);
-        line.setAttribute('y1', y1);
-        line.setAttribute('x2', x2);
-        line.setAttribute('y2', y2);
-        line.setAttribute('stroke', '#222');
-        line.setAttribute('stroke-width', '2');
-        line.setAttribute('opacity', opacity.toString());
-        if (node.parent !== 1) {
-          line.setAttribute('stroke-dasharray', '6,6');
+      if (parentNode && node._centerX && node._centerY && parentNode._centerX && parentNode._centerY) {
+        const x1 = node._centerX;
+        const y1 = node._centerY;
+        const x2 = parentNode._centerX;
+        const y2 = parentNode._centerY;
+        const dx = x2 - x1;
+        const dy = y2 - y1;
+        const len = Math.sqrt(dx * dx + dy * dy);
+        const ux = dx / len;
+        const uy = dy / len;
+        const id = `grad-${node.depth}-${parentNode.depth}-${node.id}-${parentNode.id}`;
+        if (!document.getElementById(id)) {
+          const grad = document.createElementNS('http://www.w3.org/2000/svg', 'linearGradient');
+          grad.id = id;
+          grad.setAttribute('x1', `${50 - ux * 50}%`);
+          grad.setAttribute('y1', `${50 - uy * 50}%`);
+          grad.setAttribute('x2', `${50 + ux * 50}%`);
+          grad.setAttribute('y2', `${50 + uy * 50}%`);
+          const stop1 = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
+          stop1.setAttribute('offset', '0%');
+          stop1.setAttribute('stop-color', getColorByDepth(node.depth));
+          const stop2 = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
+          stop2.setAttribute('offset', '100%');
+          stop2.setAttribute('stop-color', getColorByDepth(parentNode.depth));
+          grad.appendChild(stop1);
+          grad.appendChild(stop2);
+          svg.querySelector('defs').appendChild(grad);
         }
-        svg.appendChild(line);
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        path.setAttribute('d', createBlobbyPath(x1, y1, x2, y2, node._radius * 2, parentNode._radius * 2));
+        path.setAttribute('fill', `url(#${id})`);
+        pathsGroup.appendChild(path);
       }
     }
+  });
+
+  // Step 3: draw child node circles on top
+  const childNodes = [...nodes].filter(n => n.parent);
+  childNodes.forEach(node => {
+    const radius = getRadiusByDepth(node.depth);
+    const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    circle.setAttribute('cx', node._centerX);
+    circle.setAttribute('cy', node._centerY);
+    circle.setAttribute('r', radius);
+    circle.setAttribute('fill', getColorByDepth(node.depth));
+    circlesGroup.appendChild(circle);
   });
 }
 
@@ -103,13 +170,8 @@ export function handleMouseMove(e, nodes) {
   const mouseY = e.clientY;
   nodes.forEach(node => {
     if (node._element) {
-      // 중심 좌표 계산 (이미지+텍스트 노드는 이미지 중심, 그 외는 텍스트 좌상단 기준)
-      let centerX = node.x;
-      let centerY = node.y;
-      if (node.main && node.img) {
-        centerX = node.x + 45; // 이미지 중심
-        centerY = node.y + 45;
-      }
+      let centerX = node._centerX ?? node.x;
+      let centerY = node._centerY ?? node.y;
       const bbox = node._element.getBBox ? node._element.getBBox() : { width: 0, height: 0 };
       if (!(node.main && node.img)) {
         centerX = node.x + bbox.width / 2;

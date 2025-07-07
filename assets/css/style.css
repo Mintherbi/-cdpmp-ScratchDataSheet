@@ -1,15 +1,38 @@
-/* 오른쪽 설명 공간 배경 투명 */
-#node-desc {
-  background: transparent !important;
-}
-svg text.highlight {
-  font-size: 1.5em !important;
-  transition: font-size 0.2s;
-}
-/* Main stylesheet for precedent-datasheet project */
+/* 전체 배경 및 폰트 설정 */
 body {
   font-family: 'Segoe UI', Arial, sans-serif;
-  background: #f4f7fa;
+  background: #fff8ef;  /* Scratch 느낌의 밝은 베이지 */
   margin: 0;
   padding: 0;
+}
+
+/* 노드 설명 팝업 스타일 */
+#node-description-popup {
+  background: #fff4dd; /* 부드러운 크림색 배경 */
+  padding: 0.8rem 1.2rem;
+  border-radius: 12px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+  z-index: 10000;
+  max-width: 280px;
+  text-align: center;
+  font-size: 1rem;
+  line-height: 1.4;
+  font-family: 'Segoe UI', Arial, sans-serif;
+  color: #333; /* 대비를 위한 진한 텍스트 */
+  transform: translateX(-50%);
+  display: none;
+  position: absolute;
+  border: 2px solid #ff9c00;
+}
+
+/* 노드 텍스트 하이라이트 효과 */
+svg text.highlight {
+  font-size: 1.6em !important;
+  transition: font-size 0.2s;
+  fill: #ff9c00;
+}
+
+/* SVG 텍스트 기본 색상 */
+svg text {
+  fill: #333;
 }
